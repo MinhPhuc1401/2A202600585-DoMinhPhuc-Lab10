@@ -1,0 +1,14 @@
+[
+  {
+    "question": "What is the paper 'Operationalizing Reliability Gaps in Large Language Models: A Semi-Systematic Evidence Map of Reasoning, Factuality, Evaluation, and Retrieval-Augmented Generation' about?",
+    "answer": "Abstract Large language models (LLMs) increasingly support reasoning, question answering, decision support, and retrieval-augmented knowledge work."
+  },
+  {
+    "question": "Who authored the paper 'Hallucination in Large Language Models and Retrieval-Augmented Generation: Mechanisms, Mitigation, and Evaluation'?",
+    "answer": "Haopeng Yang"
+  },
+  {
+    "question": "What are the latest trends in retrieval augmented generation?",
+    "answer": "Retrieval-Augmented Generation (RAG) has emerged as a transformative approach for enhanc-ing large language models (LLMs) by integrating external knowledge sources to address limitations in parametric knowledge and factual accuracy."
+  }
+]

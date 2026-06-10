@@ -1,0 +1,39 @@
+{
+  "report_name": "repaired",
+  "total_rows": 19,
+  "checks": [
+    {
+      "name": "row_count_gt_zero",
+      "passed": true,
+      "detail": "Total rows: 19"
+    },
+    {
+      "name": "paper_id_not_null",
+      "passed": true,
+      "detail": "Null/empty paper_id count: 0"
+    },
+    {
+      "name": "paper_id_unique",
+      "passed": true,
+      "detail": "Duplicate paper_id count: 0"
+    },
+    {
+      "name": "title_not_null",
+      "passed": true,
+      "detail": "Null/empty title count: 0"
+    },
+    {
+      "name": "summary_min_length_20",
+      "passed": true,
+      "detail": "Rows with summary < 20 chars: 0"
+    },
+    {
+      "name": "freshness_age_lte_180_days",
+      "passed": true,
+      "detail": "Stale rows (age > 180 days): 0 (0.0%)"
+    }
+  ],
+  "passed": 6,
+  "failed": 0,
+  "success_rate": 1.0
+}
