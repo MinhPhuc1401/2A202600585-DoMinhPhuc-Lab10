@@ -26,12 +26,12 @@
 
 | Check | Status | Detail |
 |-------|--------|--------|
-| row_count_gt_zero | ✅ PASS | Total rows: 23 |
-| paper_id_not_null | ✅ PASS | Null/empty paper_id count: 0 |
-| paper_id_unique | ✅ PASS | Duplicate paper_id count: 0 |
-| title_not_null | ✅ PASS | Null/empty title count: 0 |
-| summary_min_length_20 | ✅ PASS | Rows with summary < 20 chars: 0 |
-| freshness_age_lte_180_days | ✅ PASS | Stale rows (age > 180 days): 0 (0.0%) |
+| completeness | ✅ PASS | Total rows: 23. Missing paper_id: 0, title: 0, summary: 0 |
+| accuracy | ✅ PASS | Published dates in the future: 0 (business rule: published <= today) |
+| consistency | ✅ PASS | Dates not in YYYY-MM-DD format: 0 |
+| timeliness | ✅ PASS | Stale rows (age > 180 days): 0 (0.0%) |
+| validity | ✅ PASS | Rows with summary < 20 chars: 0 (domain rule: summary >= 20 chars) |
+| uniqueness | ✅ PASS | Duplicate paper_id: 0 (dedup rate: 100.0%) |
 
 ## 4. Freshness Report
 

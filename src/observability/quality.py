@@ -11,83 +11,132 @@ from core.utils import ensure_parent
 
 
 def run_data_quality_checks(df: pd.DataFrame, settings: Settings, report_name: str) -> dict[str, Any]:
-    """Run data quality checks and write report to data/quality/.
+    """Run data quality checks based on the 6 standard data quality dimensions.
 
-    Steps:
-    1. Check row count > 0.
-    2. Check paper_id not null and unique.
-    3. Check title not null.
-    4. Check summary length >= 20 chars.
-    5. Check freshness: age_days <= freshness_threshold_days.
-    6. Write result JSON to data/quality/{report_name}.json.
+    Dimensions:
+    1. Completeness  – No missing records or critical fields.
+    2. Accuracy      – Data matches reality / source of truth.
+    3. Consistency   – Same entity has the same format across the dataset.
+    4. Timeliness    – Data is fresh enough for the use case.
+    5. Validity      – Data follows expected format and domain rules.
+    6. Uniqueness    – No duplicate records.
     """
+    import re
+    from datetime import datetime
+
     checks: list[dict[str, Any]] = []
     total_rows = len(df)
 
-    # --- Check 1: Row count ---
-    row_count_ok = total_rows > 0
-    checks.append({
-        "name": "row_count_gt_zero",
-        "passed": row_count_ok,
-        "detail": f"Total rows: {total_rows}",
-    })
-
+    # ── 1. COMPLETENESS ──────────────────────────────────────────────────────
+    # "Không thiếu records hoặc fields quan trọng"
+    # Check: row count > 0, critical fields (paper_id, title, summary) not null
     if total_rows == 0:
-        # No point in running further checks on empty dataframe
+        checks.append({
+            "name": "completeness",
+            "dimension": "Completeness",
+            "passed": False,
+            "detail": "Dataset is empty (0 rows)",
+        })
         report = {
             "report_name": report_name,
             "total_rows": total_rows,
             "checks": checks,
             "passed": 0,
-            "failed": len(checks),
+            "failed": 1,
             "success_rate": 0.0,
         }
         _save_report(report, settings, report_name)
         return report
 
-    # --- Check 2: paper_id not null ---
-    null_id_count = df["paper_id"].isna().sum() + (df["paper_id"].astype(str).str.strip() == "").sum()
+    null_pid = int(df["paper_id"].isna().sum() + (df["paper_id"].astype(str).str.strip() == "").sum())
+    null_title = int(df["title"].isna().sum() + (df["title"].astype(str).str.strip() == "").sum())
+    null_summary = int((df["summary"].astype(str).str.strip() == "").sum())
+    total_missing = null_pid + null_title + null_summary
+    completeness_ok = total_missing == 0
     checks.append({
-        "name": "paper_id_not_null",
-        "passed": int(null_id_count) == 0,
-        "detail": f"Null/empty paper_id count: {null_id_count}",
+        "name": "completeness",
+        "dimension": "Completeness",
+        "passed": completeness_ok,
+        "detail": (
+            f"Total rows: {total_rows}. "
+            f"Missing paper_id: {null_pid}, title: {null_title}, summary: {null_summary}"
+        ),
     })
 
-    # --- Check 3: paper_id unique ---
-    dup_id_count = int(df["paper_id"].duplicated().sum())
+    # ── 2. ACCURACY ──────────────────────────────────────────────────────────
+    # "Data đúng với thực tế. Check: validate với nguồn gốc, business rules"
+    # Check: published date must not be in the future (business rule)
+    today_str = datetime.now().strftime("%Y-%m-%d")
+    future_dates = 0
+    if "published" in df.columns:
+        pub_str = df["published"].astype(str).str.strip()
+        valid_dates = pub_str[pub_str.str.match(r"^\d{4}-\d{2}-\d{2}$", na=False)]
+        future_dates = int((valid_dates > today_str).sum())
+    accuracy_ok = future_dates == 0
     checks.append({
-        "name": "paper_id_unique",
-        "passed": dup_id_count == 0,
-        "detail": f"Duplicate paper_id count: {dup_id_count}",
+        "name": "accuracy",
+        "dimension": "Accuracy",
+        "passed": accuracy_ok,
+        "detail": f"Published dates in the future: {future_dates} (business rule: published <= today)",
     })
 
-    # --- Check 4: title not null ---
-    null_title_count = df["title"].isna().sum() + (df["title"].astype(str).str.strip() == "").sum()
+    # ── 3. CONSISTENCY ───────────────────────────────────────────────────────
+    # "Cùng entity, cùng format across systems. Check: cross-system reconciliation"
+    # Check: all published dates follow YYYY-MM-DD format consistently
+    inconsistent_dates = 0
+    if "published" in df.columns:
+        pub_str = df["published"].astype(str).str.strip()
+        non_empty = pub_str[pub_str != ""]
+        date_pattern = r"^\d{4}-\d{2}-\d{2}$"
+        inconsistent_dates = int((~non_empty.str.match(date_pattern, na=False)).sum())
+    consistency_ok = inconsistent_dates == 0
     checks.append({
-        "name": "title_not_null",
-        "passed": int(null_title_count) == 0,
-        "detail": f"Null/empty title count: {null_title_count}",
+        "name": "consistency",
+        "dimension": "Consistency",
+        "passed": consistency_ok,
+        "detail": f"Dates not in YYYY-MM-DD format: {inconsistent_dates}",
     })
 
-    # --- Check 5: summary length >= 20 chars ---
-    short_summary_count = int((df["summary_chars"] < 20).sum())
-    checks.append({
-        "name": "summary_min_length_20",
-        "passed": short_summary_count == 0,
-        "detail": f"Rows with summary < 20 chars: {short_summary_count}",
-    })
-
-    # --- Check 6: freshness (age_days <= threshold) ---
+    # ── 4. TIMELINESS ────────────────────────────────────────────────────────
+    # "Data đủ fresh cho use case. Check: max age, last-updated timestamp"
+    # Check: age_days <= freshness_threshold_days
     threshold = settings.freshness_threshold_days
     stale_count = int((df["age_days"] > threshold).sum())
     stale_pct = round(stale_count / total_rows * 100, 1) if total_rows > 0 else 0.0
+    timeliness_ok = stale_count == 0
     checks.append({
-        "name": f"freshness_age_lte_{threshold}_days",
-        "passed": stale_count == 0,
+        "name": "timeliness",
+        "dimension": "Timeliness",
+        "passed": timeliness_ok,
         "detail": f"Stale rows (age > {threshold} days): {stale_count} ({stale_pct}%)",
     })
 
-    # Summary
+    # ── 5. VALIDITY ──────────────────────────────────────────────────────────
+    # "Data theo đúng format và domain rules. Check: regex patterns, range checks"
+    # Check: summary must have >= 20 chars (domain rule for meaningful content)
+    short_summary = int((df["summary_chars"] < 20).sum())
+    validity_ok = short_summary == 0
+    checks.append({
+        "name": "validity",
+        "dimension": "Validity",
+        "passed": validity_ok,
+        "detail": f"Rows with summary < 20 chars: {short_summary} (domain rule: summary >= 20 chars)",
+    })
+
+    # ── 6. UNIQUENESS ────────────────────────────────────────────────────────
+    # "Không có duplicates. Check: dedup rate, composite key uniqueness"
+    # Check: paper_id must be unique (primary key)
+    dup_count = int(df["paper_id"].duplicated().sum())
+    dedup_rate = round((1 - dup_count / total_rows) * 100, 1) if total_rows > 0 else 100.0
+    uniqueness_ok = dup_count == 0
+    checks.append({
+        "name": "uniqueness",
+        "dimension": "Uniqueness",
+        "passed": uniqueness_ok,
+        "detail": f"Duplicate paper_id: {dup_count} (dedup rate: {dedup_rate}%)",
+    })
+
+    # ── Summary ──────────────────────────────────────────────────────────────
     passed = sum(1 for c in checks if c["passed"])
     failed = len(checks) - passed
     success_rate = round(passed / len(checks), 4) if checks else 0.0

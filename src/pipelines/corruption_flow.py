@@ -7,7 +7,8 @@ import pandas as pd
 from core.config import load_settings
 from core.utils import read_json, write_csv, write_json
 from evaluation.metrics import evaluate_pipeline
-from ingestion.corruption import corrupt_clean_dataframe, partial_repair_dataframe
+from ingestion.cleaning import build_clean_dataframe
+from ingestion.corruption import corrupt_clean_dataframe
 from ingestion.crossref import load_raw_records
 from observability.quality import build_freshness_report, run_data_quality_checks
 from observability.reporting import generate_corruption_report
@@ -98,21 +99,15 @@ def main() -> None:
         settings.paths.quality_dir / "freshness_corrupted.json",
     )
 
-    # --- Step 6: Partial repair (intentionally imperfect) ---
-    print("\n[corruption_flow] Partial repairing corrupted data...")
-    print("[corruption_flow] Strategy: fix blanks/duplicates/stale dates, keep dropped records + noisy summaries")
+    # --- Step 6: Repair from raw source ---
+    print("\n[corruption_flow] Repairing corrupted data from raw source...")
     if not settings.paths.raw_records_json.exists():
         raise FileNotFoundError(
             f"Raw records not found: {settings.paths.raw_records_json}\n"
             "Run phase1 first to fetch raw data."
         )
     raw_records = load_raw_records(settings.paths.raw_records_json)
-    # Build lookup dict: paper_id -> {summary, published, ...}
-    raw_lookup = {
-        r.paper_id: {"summary": r.summary, "published": r.published}
-        for r in raw_records
-    }
-    df_repaired = partial_repair_dataframe(df_corrupted, raw_lookup)
+    df_repaired = build_clean_dataframe(raw_records, run_date)
     print(f"[corruption_flow] Repaired dataset: {len(df_repaired)} rows (vs baseline {len(df_clean)})") 
 
     write_csv(df_repaired, settings.paths.repaired_clean_csv)

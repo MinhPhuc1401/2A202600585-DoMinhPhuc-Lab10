@@ -3,34 +3,40 @@
   "total_rows": 23,
   "checks": [
     {
-      "name": "row_count_gt_zero",
+      "name": "completeness",
+      "dimension": "Completeness",
       "passed": true,
-      "detail": "Total rows: 23"
+      "detail": "Total rows: 23. Missing paper_id: 0, title: 0, summary: 0"
     },
     {
-      "name": "paper_id_not_null",
+      "name": "accuracy",
+      "dimension": "Accuracy",
       "passed": true,
-      "detail": "Null/empty paper_id count: 0"
+      "detail": "Published dates in the future: 0 (business rule: published <= today)"
     },
     {
-      "name": "paper_id_unique",
+      "name": "consistency",
+      "dimension": "Consistency",
       "passed": true,
-      "detail": "Duplicate paper_id count: 0"
+      "detail": "Dates not in YYYY-MM-DD format: 0"
     },
     {
-      "name": "title_not_null",
-      "passed": true,
-      "detail": "Null/empty title count: 0"
-    },
-    {
-      "name": "summary_min_length_20",
-      "passed": true,
-      "detail": "Rows with summary < 20 chars: 0"
-    },
-    {
-      "name": "freshness_age_lte_180_days",
+      "name": "timeliness",
+      "dimension": "Timeliness",
       "passed": true,
       "detail": "Stale rows (age > 180 days): 0 (0.0%)"
+    },
+    {
+      "name": "validity",
+      "dimension": "Validity",
+      "passed": true,
+      "detail": "Rows with summary < 20 chars: 0 (domain rule: summary >= 20 chars)"
+    },
+    {
+      "name": "uniqueness",
+      "dimension": "Uniqueness",
+      "passed": true,
+      "detail": "Duplicate paper_id: 0 (dedup rate: 100.0%)"
     }
   ],
   "passed": 6,
